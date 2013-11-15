@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="//code.jquery.com/jquery-1.10.1.min.js"></script>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/css/bootstrap-responsive.min.css" rel="stylesheet">
+  <link href="//fonts.googleapis.com/css?family=Sonsie+One" rel="stylesheet">
+  <link href="//fonts.googleapis.com/css?family=Finger+Paint" rel="stylesheet">
+  <link href="//fonts.googleapis.com/css?family=Libre+Baskerville:700" rel="stylesheet">
+  <link href="//fonts.googleapis.com/css?family=Average" rel="stylesheet">
+  <link href="//fonts.googleapis.com/css?family=Nosifer" rel="stylesheet">
+  <link href="//fonts.googleapis.com/css?family=Orbitron" rel="stylesheet">
+  <link href="//fonts.googleapis.com/css?family=Days+One" rel="stylesheet">
+  <link href="//fonts.googleapis.com/css?family=Princess+Sofia" rel="stylesheet">
+
+  <link href="./spectrum.css" rel="stylesheet">
+{{ app_init_js }}
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Fill-In-The-Blanks</title>
+  <style>
+  *[hidden] {
+    display: none;
+  }
+
+  #canvas-container {
+    overflow-x: auto;
+    overflow-y: visible;
+    position: relative;
+  }
+  #canvas {
+    display: block;
+  }
+  .styleItem {
+    margin-bottom: 20px;
+  }
+
+  #box {
+    pointer-events: none;
+    position: absolute;
+    box-shadow: 0 0 200px 200px rgba(255, 255, 255, 0.5);
+    border-radius: 50px;
+    cursor: pointer;
+  }
+
+  textarea {
+    height: 20em;
+  }
+  select { width: 100%; }
+
+  @-webkit-keyframes blink {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes blink {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  .sp-palette {
+    max-width: 75px;
+    }
+
+  </style>
+<link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css">
+
+<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.2/js/bootstrap.min.js"></script>
+
+</head>
+
+<body> 
+
+<form id="form" method="get" action="">
+    <div class="row-fluid">
+        <div class="span8">
+          <div id="canvas-container">
+            <canvas id="canvas"></canvas>
+          </div>
+        </diV>
+        <div class="span4">
+          <div class="styleItem">
+            <textarea id="input-list" placeholder="Enter one word per line..." class="span12" style="height:200px"></textarea>
+          </div>
+          <div class="styleItem">
+            <b>Select a shape</b>
+              <select name="shape" id="shape">
+                <option value="circle">Circle</option>
+                <option value="cardioid">Cardioid</option>
+                <option value="diamond">Diamond</option>
+                <option value="triangle">Triangle</option>
+              </select>
+          </div>
+          <div class="styleItem">
+            <b>Find a font</b>
+              <select name="config-css" id="config-css">
+                <option value="Finger Paint">Finger Paint</option>
+                <option value="Libre Baskerville">Libre Baskerville</option>
+                <option value="Sonsie One">Sonsie One</option>
+                <option value="Average">Average</option>
+                <option value="Nosifer">Nosifer</option>
+                <option value="Orbitron">Orbitron</option>
+                <option value="Days One">Days One</option>
+                <option value="Princess Sofia">Princess Sofia</option>
+              </select>
+          </div>
+          <div class="styleItem">
+            <b>Customise your colours</b><br>
+              <input type="color" value="#ffe0e0" name="background_color" id="background_color">
+              <input type="color" value="#f02222" name="secondary_color" id="secondary_color">
+              <input type="color" value="#c09292" name="primary_color" id="primary_color">
+              <input type="color" value="#ffabab" name="third_color" id="third_color">
+          </div>
+          <div class="styleItem">
+              <button class="btn btn-primary" type="submit">Generate Word Cloud</button>
+              <a class="btn btn-success" id="btn-save" href="#">Submit</a>
+          </div>
+        </div>
+    </div>
+</form>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/bootstrap.min.js"></script>
+  <script src="./wordcloud2.js"></script>
+  <script src="./spectrum.js"></script>
+  <script>
+  'use strict';
+
+  var _ = {};
+  _.throttle = function(func, wait, options) {
+    var context, args, result;
+    var timeout = null;
+    var previous = 0;
+    options || (options = {});
+    var later = function() {
+      previous = options.leading === false ? 0 : new Date;
+      timeout = null;
+      result = func.apply(context, args);
+    };
+    return function() {
+      var now = new Date;
+      if (!previous && options.leading === false) previous = now;
+      var remaining = wait - (now - previous);
+      context = this;
+      args = arguments;
+      if (remaining <= 0) {
+        clearTimeout(timeout);
+        timeout = null;
+        previous = now;
+        result = func.apply(context, args);
+      } else if (!timeout && options.trailing !== false) {
+        timeout = setTimeout(later, remaining);
+      }
+      return result;
+    };
+  };
+
+  $(document).ready(function() {
+    var updateColor = _.throttle(function(color) {
+      var $this = $(this);
+      $this.val(color.toHexString());
+      $this.trigger('preview');
+    }, 100);
+
+    $('input[type=color]').spectrum({
+      showInitial: true,
+      showInput: true,
+      showButtons: false,
+      preferredFormat: "hex6",
+      showPalette: true,
+      localStorageKey: "spectrum.adminColors",
+      move: updateColor,
+      palette: [
+        '#ffffff',
+        '#000000',
+        '#ED5565',
+        '#DA4453',
+        '#FC6E51',
+        '#E9573F',
+        '#FFCE54',
+        '#F6BB42',
+        '#A0D468',
+        '#8CC152',
+        '#48CFAD',
+        '#37BC9B',
+        '#4FC1E9',
+        '#3BAFDA',
+        '#5D9CEC',
+        '#4A89DC',
+        '#AC92EC',
+        '#967ADC',
+        '#EC87C0',
+        '#D770AD',
+        '#CCD1D9',
+        '#AAB2BD',
+        '#656D78',
+        '#434A54'
+      ]
+    });
+  });
+
+  jQuery(function ($) {
+    var $form = $('#form');
+    var $canvas = $('#canvas');
+    var $canvasContainer = $('#canvas-container');
+
+    var $list = $('#input-list');
+
+    if (!WordCloud.isSupported) {
+      $('#not-supported').prop('hidden', false);
+      $form.find('textarea, input, select, button').prop('disabled', true);
+      return;
+    }
+
+    var $box = $('<div id="box" hidden />');
+    $canvasContainer.append($box);
+    window.drawBox = function drawBox(item, dimension) {
+      if (!dimension) {
+        $box.prop('hidden', true);
+
+        return;
+      }
+
+      $box.prop('hidden', false);
+      $box.css({
+        left: dimension.x + 'px',
+        top: dimension.y + 'px',
+        width: dimension.w + 'px',
+        height: dimension.h + 'px'
+      });
+    };
+
+    $('#input-list').on('keyup', function() {
+      $(this).val($(this).val().replace(/,\s?/g, '\n'));
+    });
+
+    $form.on('submit', function formSubmit(evt) {
+      evt.preventDefault();
+      var options = {
+        gridSize: Math.round(16 * $('#canvas').width() / 1024),
+        weightFactor: function (size) {
+          return (12 + Math.pow(size, 2.0)) * $('#canvas').width() / 1024;
+        },
+        shape: $('#shape').val(),
+        fontFamily: '\'' + $('#config-css').val() + '\'',
+        color: function (word, weight) {
+          if (weight > 6) {
+            return $('#secondary_color').val();
+          } else if (weight > 3) {
+            return $('#primary_color').val(); 
+          } else {
+            return $('#third_color').val();  
+          }
+        },
+        rotateRatio: 0.4,
+        backgroundColor: $('#background_color').val()
+      }
+      run(options);
+    });
+
+    var run = function run(options) {
+      // devicePixelRatio
+      var devicePixelRatio = 1;
+
+      // Set the width and height
+      var width = $('#canvas-container').width();
+      var height = Math.floor(width * 0.75);
+
+      if (devicePixelRatio !== 1) {
+        $canvas.css({'width': width + 'px', 'height': height + 'px'});
+
+        width *= devicePixelRatio;
+        height *= devicePixelRatio;
+      } else {
+        $canvas.css({'width': '', 'height': '' });
+      }
+
+      $canvas.attr('width', width);
+      $canvas.attr('height', height);
+
+
+      // Put the word list into options
+      if ($list.val()) {
+        var list = [];
+        $.each($list.val().split('\n'), function each(i, line) {
+          if (!$.trim(line))
+            return;
+
+          var lineArr = line.split(' ');
+          var count = parseFloat(2 + Math.floor(Math.random() * 6));
+          list.push([line, count]);
+        });
+        options.list = list;
+      }
+
+      WordCloud($canvas[0], options);
+    };
+    
+     $('#btn-save').on('click', function() {
+        var $btn = $(this);
+
+        $btn.button('loading');
+        // common save data (this click saves the current answers too)
+        var saveData = {
+            'base64': $canvas[0].toDataURL()
+        };
+
+        saveData.submit = true;
+        saveData.grading = JSON.stringify({
+            completed: true
+        });
+
+        // store that it's completed in the submission data too
+        // for easy access
+        saveData.metadata.completed = true;
+
+        // this is what we do once that's saved
+        var callback = function(response) {
+            if (response.success) {
+                setCompleted();
+                window.app.sendMessage('updateProgress', {});
+            } else {
+                alert('Unable to save at this time')
+            }
+
+            $btn.button('reset');
+        };
+
+        // saveData is a bunch of POST params, so JSON stringify the deeper objects
+        saveData.metadata = JSON.stringify(saveData.metadata);
+
+        $.post("/run/saveSubmission", saveData, callback, 'json');
+
+        window.app.resize();
+    });
+  });
+
+  </script>
+</body>
+</html>

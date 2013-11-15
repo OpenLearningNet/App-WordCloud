@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="//code.jquery.com/jquery-1.10.1.min.js"></script>
+{{ app_init_js }}
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Configure Fill-In-The-Blanks</title>
+<style type="text/css">
+    body {
+        padding: 8px;
+    }
+    .blank-input {
+        border: none;
+        border-bottom: 1px solid #444;
+        outline: none;
+        color: #444;
+        text-align: center;
+    }
+
+    .blank-input.incorrect {
+        background-color: #eaa;
+    }
+
+    #fillInBlanks {
+        padding: 12px;
+        float: left;
+        width: 80%;
+        font-size: 16px;
+    }
+
+    #wordlist {
+        margin-top: 4px;
+        float: left;
+    }
+
+    #wordlist h3 {
+        text-decoration: underline;
+    }
+
+    .wordlist {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-bottom: 12px;
+        border: 1px solid #bbb;
+        -webkit-border-radius: 4px;
+        -moz-border-radius: 4px;
+        border-radius: 4px;
+    }
+
+    .wordlist li {
+        font-size: 18px;
+        margin-left: 12px;
+    }
+
+    .wordlist .used {
+        text-decoration: line-through;
+    }
+
+    #congratulations {
+        background-color: #5b5;
+        color: white;
+        font-size: 32px;
+        text-align: center;
+    }
+</style>
+<link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css">
+
+<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.2/js/bootstrap.min.js"></script>
+</head>
+
+<body> 
+    <textarea id="defineFillInBlanks" style="width: 100%; height: 320px;">
+The quick brown ___(fox) jumped over the lazy ___(dog). Once upon a ____(time), there lived three little ____(pigs).
+Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
+    </textarea>
+    <div style="height: 4px;"></div>
+    <button id="generate" type="button" class="btn btn-primary pull-right">Generate Puzzle</button>
+    <div style="clear:both;"></div>
+    <hr>
+    <div id="fillInBlanks">
+    </div>
+    <div id="wordlist"></div>
+    <div style="clear:both"></div>
+
+    <div class="text-center">
+        <button id="savePuzzle" type="button" data-loading-text="Saving..." class="btn btn-success">Save Puzzle</button>
+    </div>
+    <script type="text/javascript">
+        var inputMatch = /(__+)\s*\((.*?)\)/g;
+        var encryptionKey = '8ah4tads9a7gaancxmb4a9tadaihcapwethsf9a7z3';
+
+        function ec(text) {
+            var keyLength = encryptionKey.length;
+            var symbols = [];
+            for (var i = 0; i !== text.length; ++i) {
+                symbols.push(text[i].charCodeAt(0) ^ encryptionKey[i % keyLength].charCodeAt(0));
+            }
+
+            return symbols.join('a');
+        };
+
+        function dc(text) {
+            var keyLength = encryptionKey.length;
+            var outText = '';
+            var symbols = text.split(/a/g);
+            for (var i = 0; i !== symbols.length; ++i) {
+                outText += String.fromCharCode(symbols[i] ^ encryptionKey[i % keyLength].charCodeAt(0));
+            }
+
+            return outText;
+        };
+
+        function shuffle(o) {
+            for (var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+            return o;
+        };
+
+        function generateWordList(textInput) {
+            var words = [];
+            var match = inputMatch.exec(textInput);
+            while (match != null) {
+                words.push(dc(match[2]));
+                match = inputMatch.exec(textInput);
+            }
+            return shuffle(words);
+        };
+
+        function encodeConfigText(textInput) {
+            return textInput.replace(inputMatch, function(match, line, word) {
+                return line + '(' + ec(word) + ')';
+            });
+        };
+
+        function generateWordsHTML(textInput) {
+            var words = generateWordList(textInput);
+            var $container = $('<ul class="wordlist"></ul>');
+
+            $container.append($('<h3>Word List</h3>'));
+            $.each(words, function(i, word) {
+                $container.append(
+                    $('<li>').text(word).attr('data-word', word).addClass('word')
+                );
+            });
+
+            return $container;
+        }
+
+        function generatePassageHTML(textInput) {
+            return textInput.replace(inputMatch, function(match, line, word) {
+                var len = word.split(/a/g).length;
+                return '<input type="text" class="blank-input" data-correct="' + word + '" maxlength="' + len + '" style="width: ' + len + 'em;">';
+            }).replace(/\n/g, '<br>');
+        };
+
+        $(function() {
+            $('#savePuzzle').on('click', function() {
+                $btn = $(this);
+                var configPlainText = $('#defineFillInBlanks').val();
+                var configText = encodeConfigText(configPlainText);
+
+                var configJSON = JSON.stringify({
+                    configText: configText
+                });
+
+                $btn.button('loading');
+
+                $.post("/run/saveConfig", {
+                    format: 'json',
+                    config: configJSON
+                }, function(data) {
+                    $btn.button('reset');
+                }, 'json');
+            });
+
+            $('#generate').on('click', function() {
+                var configPlainText = $('#defineFillInBlanks').val();
+                var configText = encodeConfigText(configPlainText);
+
+                $('#fillInBlanks').html(generatePassageHTML(configText));
+                $('#wordlist').html(generateWordsHTML(configText));
+                window.app.resize();
+            });
+
+            $('#check').on('click', function() {
+                var incorrect = false;
+                $('.blank-input').each(function(i, inpt) {
+                    $blank = $(inpt);
+                    var val = $blank.val();
+
+                    if (val.toLowerCase() !== dc($blank.attr('data-correct')).toLowerCase()) {
+                        incorrect = true;
+                        $blank.addClass('incorrect');
+                    }
+                })
+
+                if (!incorrect) {
+                    $('#congratulations').removeClass('hide').hide().fadeIn();
+                    $('#check').hide();
+                }
+
+                window.app.resize();
+            });
+
+            $('#fillInBlanks').on('keypress blur change', '.blank-input', function() {
+                $(this).removeClass('incorrect');
+                var value = $(this).val();
+                if ($(this).data('used')) {
+                    $(this).data('used').removeClass('used');
+                }
+                $(this).data('used', $('.word[data-word="' + value + '"]').addClass('used'));
+            });
+
+            window.app.resize();
+        });
+    </script>
+</body>
+</html>
