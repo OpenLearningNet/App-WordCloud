@@ -14,7 +14,7 @@
   <link href="//fonts.googleapis.com/css?family=Days+One" rel="stylesheet">
   <link href="//fonts.googleapis.com/css?family=Princess+Sofia" rel="stylesheet">
 
-  <link href="./spectrum.css" rel="stylesheet">
+  <link href="{{ media('spectrum.css') }}" rel="stylesheet">
 {{ app_init_js }}
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title>Fill-In-The-Blanks</title>
@@ -69,7 +69,7 @@
 
 <body> 
 
-<form id="form" method="get" action="">
+<form id="form" method="get" action="" style="margin-bottom: 0px;">
     <div class="row-fluid">
         <div class="span8">
           <div id="canvas-container">
@@ -118,8 +118,9 @@
 </form>
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
   <script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/bootstrap.min.js"></script>
-  <script src="./wordcloud2.js"></script>
-  <script src="./spectrum.js"></script>
+  <script type="text/javascript" src="{{ media('wordcloud2.js') }}"></script>
+  <script type="text/javascript" src="{{ media('spectrum.js') }}"></script>
+
   <script>
   'use strict';
 
@@ -299,17 +300,13 @@
         $btn.button('loading');
         // common save data (this click saves the current answers too)
         var saveData = {
-            'base64': $canvas[0].toDataURL()
+          'submit': true,
+          'grading': JSON.stringify({
+            'completed': true
+          }),
+          'metadata': {},
+          'file': $canvas[0].toDataURL()
         };
-
-        saveData.submit = true;
-        saveData.grading = JSON.stringify({
-            completed: true
-        });
-
-        // store that it's completed in the submission data too
-        // for easy access
-        saveData.metadata.completed = true;
 
         // this is what we do once that's saved
         var callback = function(response) {
