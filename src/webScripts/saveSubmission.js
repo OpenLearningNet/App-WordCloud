@@ -39,7 +39,7 @@ try {
 
 if (responseJSON.success) {
 	// send this submission to OpenLearning
-	OpenLearning.activity.saveSubmission(request.user, updateObject);
+	OpenLearning.activity.saveSubmission(request.user, updateObject, 'file');
 
 	// additional actions
 	if (request.data['submit'] && request.data['submit'].toString() === 'true') {

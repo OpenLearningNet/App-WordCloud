@@ -3,6 +3,9 @@
 <head>
 
 <script src="//code.jquery.com/jquery-1.10.1.min.js"></script>
+{{ app_init_js }}
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
   <link href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/css/bootstrap-responsive.min.css" rel="stylesheet">
   <link href="//fonts.googleapis.com/css?family=Sonsie+One" rel="stylesheet">
@@ -13,10 +16,8 @@
   <link href="//fonts.googleapis.com/css?family=Orbitron" rel="stylesheet">
   <link href="//fonts.googleapis.com/css?family=Days+One" rel="stylesheet">
   <link href="//fonts.googleapis.com/css?family=Princess+Sofia" rel="stylesheet">
-
   <link href="{{ media('spectrum.css') }}" rel="stylesheet">
-{{ app_init_js }}
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
 <title>Fill-In-The-Blanks</title>
   <style>
   *[hidden] {
@@ -60,6 +61,13 @@
     max-width: 75px;
     }
 
+.success-banner {
+    background-color: #5b5;
+    color: white;
+    font-size: 32px;
+    text-align: center;
+    margin-bottom: 10px;
+}
   </style>
 <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css">
 
@@ -70,6 +78,7 @@
 <body> 
 
 <form id="form" method="get" action="" style="margin-bottom: 0px;">
+    <div id="completed"></div>
     <div class="row-fluid">
         <div class="span8">
           <div id="canvas-container">
@@ -116,7 +125,6 @@
         </div>
     </div>
 </form>
-  <script src="//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
   <script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/bootstrap.min.js"></script>
   <script type="text/javascript" src="{{ media('wordcloud2.js') }}"></script>
   <script type="text/javascript" src="{{ media('spectrum.js') }}"></script>
@@ -197,6 +205,9 @@
     });
   });
 
+$(function() {
+    $.getJSON("/run/getConfig", function(response) {
+
   jQuery(function ($) {
     var $form = $('#form');
     var $canvas = $('#canvas');
@@ -256,6 +267,14 @@
       run(options);
     });
 
+
+     var setCompleted = function setCompleted() {
+          $('#completed').html(
+              '<div class="success-banner">Completed!</div>'
+          );
+          window.app.resize();
+      };
+
     var run = function run(options) {
       // devicePixelRatio
       var devicePixelRatio = 1;
@@ -304,8 +323,22 @@
           'grading': JSON.stringify({
             'completed': true
           }),
-          'metadata': {},
-          'file': $canvas[0].toDataURL()
+          'metadata': {
+            'base64': $canvas[0].toDataURL().split(',')[1],
+            'width': $canvas[0].width,
+            'height': $canvas[0].height
+          },
+          'file': {
+            'filename': 'image.png',
+            'data': $canvas[0].toDataURL().split(',')[1],
+            'encoding': 'base64'
+          },
+          'previewImage': {
+            'filename': 'preview.png',
+            'data': $canvas[0].toDataURL().split(',')[1],
+            'encoding': 'base64'
+          },
+          markup: "{{./PreviewImage}}"
         };
 
         // this is what we do once that's saved
@@ -328,7 +361,8 @@
         window.app.resize();
     });
   });
-
+  });
+});
   </script>
 </body>
 </html>

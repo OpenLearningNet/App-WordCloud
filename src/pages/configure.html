@@ -170,6 +170,7 @@ Knock knock? Who's _____(there)? What's the time Mr ____(wolf)?
 
                 $.post("/run/saveConfig", {
                     format: 'json',
+                    type: 'file',
                     config: configJSON
                 }, function(data) {
                     $btn.button('reset');
