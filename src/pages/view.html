@@ -6,8 +6,6 @@
 {{ app_init_js }}
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
-  <link href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/css/bootstrap.min.css" rel="stylesheet">
-  <link href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/css/bootstrap-responsive.min.css" rel="stylesheet">
   <link href="//fonts.googleapis.com/css?family=Sonsie+One" rel="stylesheet">
   <link href="//fonts.googleapis.com/css?family=Finger+Paint" rel="stylesheet">
   <link href="//fonts.googleapis.com/css?family=Libre+Baskerville:700" rel="stylesheet">
@@ -79,15 +77,16 @@
 
 <form id="form" method="get" action="" style="margin-bottom: 0px;">
     <div id="completed"></div>
-    <div class="row-fluid">
-        <div class="span8">
+    <div class="row" style="margin: 0;">
+        <div class="col-xs-8">
           <div id="canvas-container">
+            <img src="" class="hide" id="submittedImage">
             <canvas id="canvas"></canvas>
           </div>
         </diV>
-        <div class="span4">
+        <div class="col-xs-4">
           <div class="styleItem">
-            <textarea id="input-list" placeholder="Enter one word per line..." class="span12" style="height:200px"></textarea>
+            <textarea id="input-list" placeholder="Enter one word or phrase per line..." class="col-xs-12" style="height:200px"></textarea>
           </div>
           <div class="styleItem">
             <b>Select a shape</b>
@@ -132,41 +131,12 @@
   <script>
   'use strict';
 
-  var _ = {};
-  _.throttle = function(func, wait, options) {
-    var context, args, result;
-    var timeout = null;
-    var previous = 0;
-    options || (options = {});
-    var later = function() {
-      previous = options.leading === false ? 0 : new Date;
-      timeout = null;
-      result = func.apply(context, args);
-    };
-    return function() {
-      var now = new Date;
-      if (!previous && options.leading === false) previous = now;
-      var remaining = wait - (now - previous);
-      context = this;
-      args = arguments;
-      if (remaining <= 0) {
-        clearTimeout(timeout);
-        timeout = null;
-        previous = now;
-        result = func.apply(context, args);
-      } else if (!timeout && options.trailing !== false) {
-        timeout = setTimeout(later, remaining);
-      }
-      return result;
-    };
-  };
-
   $(document).ready(function() {
-    var updateColor = _.throttle(function(color) {
+    var updateColor = function(color) {
       var $this = $(this);
       $this.val(color.toHexString());
       $this.trigger('preview');
-    }, 100);
+    };
 
     $('input[type=color]').spectrum({
       showInitial: true,
@@ -280,6 +250,8 @@ $(function() {
       var devicePixelRatio = 1;
 
       // Set the width and height
+      $('#submittedImage').addClass('hide');
+      $canvas.removeClass('hide');
       var width = $('#canvas-container').width();
       var height = Math.floor(width * 0.75);
 
@@ -324,21 +296,16 @@ $(function() {
             'completed': true
           }),
           'metadata': {
-            'base64': $canvas[0].toDataURL().split(',')[1],
             'width': $canvas[0].width,
-            'height': $canvas[0].height
+            'height': $canvas[0].height,
+            'words': $list.val(),
+            'fileData': $canvas[0].toDataURL(),
           },
           'file': {
             'filename': 'image.png',
             'data': $canvas[0].toDataURL().split(',')[1],
             'encoding': 'base64'
-          },
-          'previewImage': {
-            'filename': 'preview.png',
-            'data': $canvas[0].toDataURL().split(',')[1],
-            'encoding': 'base64'
-          },
-          markup: "{{./PreviewImage}}"
+          }
         };
 
         // this is what we do once that's saved
@@ -355,6 +322,7 @@ $(function() {
 
         // saveData is a bunch of POST params, so JSON stringify the deeper objects
         saveData.metadata = JSON.stringify(saveData.metadata);
+        saveData.file = JSON.stringify(saveData.file);
 
         $.post("/run/saveSubmission", saveData, callback, 'json');
 
@@ -362,6 +330,19 @@ $(function() {
     });
   });
   });
+  $.getJSON("/run/getSubmission", function(response) {
+      var metadata =  ((response || {}).metadata || {});
+      if (metadata.words) {
+        $('#input-list').val(metadata.words);
+      }
+      if (metadata.fileData) {
+        $('#submittedImage').attr('src', metadata.fileData);
+        $('#submittedImage').attr('width', metadata.width);
+        $('#submittedImage').attr('height', metadata.height);
+        $('#submittedImage').removeClass('hide');
+        $('#canvas').addClass('hide');
+      }
+  });    
 });
   </script>
 </body>
